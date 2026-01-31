@@ -1,11 +1,10 @@
 package tui
 
 import (
+	"log"
 	"sync"
-	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
 	"github.com/gopxl/beep"
 	"github.com/gopxl/beep/effects"
 	"github.com/gopxl/beep/speaker"
@@ -13,11 +12,19 @@ import (
 )
 
 const (
-	tickRate     = time.Second
 	titlePadding = "        "
 )
 
-type tickMsg time.Time
+type page int
+
+const (
+	homePage page = iota
+	playerPage
+)
+
+type changePageMsg struct {
+	next page
+}
 
 type model struct {
 	sampleRate          beep.SampleRate
@@ -30,8 +37,8 @@ type model struct {
 	currentTitle        string
 	displayedTitle      string
 	maxDisplayTitleSize int
-	currentPage         string
-	pageHistory         stack.Stack[string]
+	currentPage         page
+	pageHistory         stack.Stack[page]
 	width               int
 	height              int
 }
@@ -57,14 +64,12 @@ func NewModel(
 		currentTitle:        "",
 		displayedTitle:      "",
 		maxDisplayTitleSize: maxDisplayedTitleSize,
-		currentPage:         "home",
-		pageHistory:         stack.Stack[string]{},
+		currentPage:         homePage,
+		pageHistory:         stack.Stack[page]{},
 	}, nil
 }
 
 func (m *model) Init() tea.Cmd {
-	m.Play()
-
 	return tick()
 }
 
@@ -73,103 +78,49 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		m.width = msg.Width
 		m.height = msg.Height
-	case tickMsg:
-		m.titleMutex.Lock()
-		if len(m.displayedTitle)-len(titlePadding) > m.maxDisplayTitleSize {
-			m.displayedTitle = leftShiftString(m.displayedTitle)
-		}
-		m.titleMutex.Unlock()
-
-		if m.titleUpdate() {
-			return m, tea.Batch(
-				tick(),
-				tea.SetWindowTitle("♫ "+m.stationName+" ~ "+m.currentTitle+" ♫"),
-			)
-		}
-
-		return m, tick()
 	case tea.KeyMsg:
 		switch msg.String() {
-		case "ctrl+c", "esc":
+		case "ctrl+c":
 			speaker.Close()
 			return m, tea.Quit
-		case "w":
-			speaker.Lock()
-			m.volumeMutex.Lock()
-			m.volume.Volume += 0.1
-			m.volumeMutex.Unlock()
-			speaker.Unlock()
-		case "s":
-			speaker.Lock()
-			m.volumeMutex.Lock()
-			m.volume.Volume -= 0.1
-			m.volumeMutex.Unlock()
-			speaker.Unlock()
-		case "m", " ":
-			speaker.Lock()
-			m.volumeMutex.Lock()
-			m.volume.Silent = !m.volume.Silent
-			m.volumeMutex.Unlock()
-			speaker.Unlock()
+		case "esc":
+			m.Stop()
+			if m.pageHistory.IsEmpty() {
+				speaker.Close()
+				return m, tea.Quit
+			} else {
+				previousPage, err := m.pageHistory.Pop()
+				if err != nil {
+					log.Fatal(err)
+				}
+				m.currentPage = previousPage
+				return m, nil
+			}
 		}
+	case changePageMsg:
+		m.pageHistory.Push(m.currentPage)
+		m.currentPage = msg.next
+
+		return m, tick()
 	}
+
+	switch m.currentPage {
+	case homePage:
+		return m.homeUpdate(msg)
+	case playerPage:
+		return m.playerUpdate(msg)
+	}
+
 	return m, nil
 }
 
 func (m *model) View() string {
-	m.titleMutex.Lock()
-	title := m.displayedTitle
-	m.titleMutex.Unlock()
-	if len(title) > m.maxDisplayTitleSize {
-		title = title[:m.maxDisplayTitleSize]
-	}
-
-	output := "Station: " + m.stationName +
-		"\nSong: " + title +
-		"\n\nPress Space or M to mute" +
-		"\nUse W and S to control Volume" +
-		"\nTo exit press escme, or Ctrl+c"
-
-	style := lipgloss.NewStyle().Border(lipgloss.RoundedBorder()).
-		BorderForeground(lipgloss.Color("#FFFFFF")).Padding(1, 2)
-
-	return lipgloss.Place(
-		m.width, m.height, lipgloss.Center, lipgloss.Center, style.Render(output))
-}
-
-func (m *model) titleUpdate() bool {
-	select {
-	case title := <-m.titleChan:
-		if len(title) > 0 {
-			m.titleMutex.Lock()
-			m.currentTitle = title
-			m.displayedTitle = m.currentTitle + titlePadding
-			m.titleMutex.Unlock()
-		}
-
-		return true
+	switch m.currentPage {
+	case homePage:
+		return m.homeView()
+	case playerPage:
+		return m.playerView()
 	default:
-		return false
+		return m.homeView()
 	}
-}
-
-func (m *model) Play() {
-	speaker.Play(m.volume)
-}
-
-func leftShiftString(s string) string {
-	if len(s) <= 1 {
-		return s
-	}
-
-	b := make([]byte, len(s))
-	copy(b, s[1:])
-	b[len(s)-1] = s[0]
-	return string(b)
-}
-
-func tick() tea.Cmd {
-	return tea.Tick(tickRate, func(t time.Time) tea.Msg {
-		return tickMsg(t)
-	})
 }

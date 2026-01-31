@@ -19,10 +19,13 @@ func TestStack(t *testing.T) {
 	s.Push("world")
 	s.Push("!")
 
+	assert.Equal(t, []string{"hello", "world", "!"}, s.GetStack())
+
 	assert.Len(t, s.elements, 3, "Expected 3 elements!")
 
 	value, err = s.Pop()
 	assert.NoError(t, err, "Expected no error! Stack not empty.")
 	assert.Equal(t, "!", value, "Expected none empty string! Stack not empty.")
 	assert.Len(t, s.elements, 2, "Expected 2 elements!")
+	assert.Equal(t, []string{"hello", "world"}, s.GetStack())
 }
