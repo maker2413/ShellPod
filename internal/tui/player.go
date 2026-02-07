@@ -2,7 +2,6 @@ package tui
 
 import (
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
 	"github.com/gopxl/beep/speaker"
 )
 
@@ -66,11 +65,7 @@ func (m *model) playerView() string {
 		"\nUse W and S to control Volume" +
 		"\nTo exit press esc, or Ctrl+c"
 
-	style := lipgloss.NewStyle().Border(lipgloss.RoundedBorder()).
-		BorderForeground(lipgloss.Color("#FFFFFF")).Padding(1, 2)
-
-	return lipgloss.Place(
-		m.width, m.height, lipgloss.Center, lipgloss.Center, style.Render(output))
+	return m.centeredStyle(output)
 }
 
 func (m *model) titleUpdate() bool {

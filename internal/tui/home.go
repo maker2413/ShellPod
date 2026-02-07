@@ -14,7 +14,9 @@ func (m *model) homeUpdate(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m *model) homeView() string {
-	return "♫ Welcome to ShellPod! ♫" +
+	output := "♫ Welcome to ShellPod! ♫" +
 		"\nPress any key to continue" +
 		"\nOr press escape key to exit"
+
+	return m.centeredStyle(output)
 }
