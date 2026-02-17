@@ -3,3 +3,5 @@ maxDisplayedTitleSize: 24
 stations:
   - name: "RPGamers Network"
     url: "http://listen.rpgamers.net/rpgn"
+  - name: "Whisperings Solo Piano Radio"
+    url: "https://pianosolo.streamguys1.com/live"

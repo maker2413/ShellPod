@@ -2,15 +2,10 @@ package main
 
 import (
 	"log"
-	"net/http"
-	"strconv"
-	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/gopxl/beep/mp3"
-	"github.com/gopxl/beep/speaker"
 	"github.com/maker2413/shellpod/internal/config"
-	"github.com/maker2413/shellpod/internal/icyreader"
+	"github.com/maker2413/shellpod/internal/radio"
 	"github.com/maker2413/shellpod/internal/tui"
 )
 
@@ -33,60 +28,24 @@ func main() {
 		}()
 	}
 
-	client := &http.Client{Timeout: 0}
-	req, err := http.NewRequest("GET", config.Stations[0].StreamURL, nil)
+	radio, err := radio.NewRadio(config)
 	if err != nil {
 		log.Fatal(err)
 	}
-	req.Header.Set("Icy-MetaData", "1")
-
-	resp, err := client.Do(req)
-	if err != nil {
-		log.Fatalf("Failed to connect: %v", err)
-	}
 	defer func() {
-		err = resp.Body.Close()
+		err = radio.Resp.Body.Close()
+		if err != nil {
+			log.Fatal(err)
+		}
+	}()
+	defer func() {
+		err = radio.Streamer.Close()
 		if err != nil {
 			log.Fatal(err)
 		}
 	}()
 
-	// Check if the server actually supports ICY metadata
-	icyIntStr := resp.Header.Get("icy-metaint")
-	if icyIntStr == "" {
-		log.Fatal("Server did not return icy-metaint. This might not be a direct Icecast stream.")
-	}
-
-	// Get the interval from headers
-	metaint, err := strconv.Atoi(resp.Header.Get("icy-metaint"))
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	reader := icyreader.NewIcyReader(resp.Body, metaint)
-	titleChan := make(chan string, 10)
-	reader.TitleChan = titleChan
-
-	wrappedReader := icyreader.NewWrappedReader(reader, 32*1024) // 32KB buffer
-
-	// We wrap in bufio to ensure the decoder gets enough data to identify the format
-	streamer, format, err := mp3.Decode(wrappedReader)
-	if err != nil {
-		log.Fatalf("Failed to decode MP3: %v", err)
-	}
-	defer func() {
-		err = streamer.Close()
-		if err != nil {
-			log.Fatal(err)
-		}
-	}()
-
-	err = speaker.Init(format.SampleRate, format.SampleRate.N(time.Second/10))
-	if err != nil {
-		log.Fatal("Failed to initialize speaker:", err)
-	}
-
-	m, err := tui.NewModel(format.SampleRate, streamer, config.Stations[0].StationName, titleChan, config.MaxDisplayedTitleSize)
+	m, err := tui.NewModel(radio)
 	if err != nil {
 		log.Fatal(err)
 	}

@@ -24,16 +24,16 @@ func (m *model) playerUpdate(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, tick()
 	case tea.KeyMsg:
 		switch msg.String() {
-		case "ctrl+c", "esc":
+		case "ctrl+c", "esc", "q":
 			speaker.Close()
 			return m, tea.Quit
-		case "w":
+		case "w", "up":
 			speaker.Lock()
 			m.volumeMutex.Lock()
 			m.volume.Volume += 0.1
 			m.volumeMutex.Unlock()
 			speaker.Unlock()
-		case "s":
+		case "s", "down":
 			speaker.Lock()
 			m.volumeMutex.Lock()
 			m.volume.Volume -= 0.1

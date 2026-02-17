@@ -8,6 +8,7 @@ import (
 	"github.com/gopxl/beep"
 	"github.com/gopxl/beep/effects"
 	"github.com/gopxl/beep/speaker"
+	"github.com/maker2413/shellpod/internal/radio"
 	"github.com/maker2413/shellpod/internal/stack"
 )
 
@@ -43,27 +44,21 @@ type model struct {
 	height              int
 }
 
-func NewModel(
-	sampleRate beep.SampleRate,
-	streamer beep.StreamSeeker,
-	stationName string,
-	titleChan <-chan string,
-	maxDisplayedTitleSize int,
-) (tea.Model, error) {
-	volume := &effects.Volume{Streamer: streamer, Base: 2, Volume: -2.0}
+func NewModel(r radio.Radio) (tea.Model, error) {
+	volume := &effects.Volume{Streamer: r.Streamer, Base: 2, Volume: -2.0}
 
-	if maxDisplayedTitleSize <= 0 {
-		maxDisplayedTitleSize = len(titlePadding)
+	if r.Config.MaxDisplayedTitleSize <= 0 {
+		r.Config.MaxDisplayedTitleSize = len(titlePadding)
 	}
 
-	return &model{sampleRate: sampleRate,
-		streamer:            streamer,
+	return &model{sampleRate: r.SampleRate,
+		streamer:            r.Streamer,
 		volume:              volume,
-		stationName:         stationName,
-		titleChan:           titleChan,
+		stationName:         r.Stations[0].StationName,
+		titleChan:           r.TitleChan,
 		currentTitle:        "",
 		displayedTitle:      "",
-		maxDisplayTitleSize: maxDisplayedTitleSize,
+		maxDisplayTitleSize: r.Config.MaxDisplayedTitleSize,
 		currentPage:         homePage,
 		pageHistory:         stack.Stack[page]{},
 	}, nil
