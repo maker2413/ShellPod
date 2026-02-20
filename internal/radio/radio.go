@@ -2,6 +2,7 @@ package radio
 
 import (
 	"fmt"
+	"net"
 	"net/http"
 	"strconv"
 	"time"
@@ -23,7 +24,16 @@ type Radio struct {
 }
 
 func NewRadio(c config.Config) (Radio, error) {
-	client := &http.Client{Timeout: 0}
+	client := &http.Client{
+		Transport: &http.Transport{
+			DialContext: (&net.Dialer{
+				Timeout: 30 * time.Second,
+			}).DialContext,
+			ResponseHeaderTimeout: 30 * time.Second,
+		},
+	}
+	//client := &http.Client{Timeout: 0}
+
 	req, err := http.NewRequest("GET", c.Stations[0].StreamURL, nil)
 	if err != nil {
 		return Radio{}, err
@@ -32,13 +42,13 @@ func NewRadio(c config.Config) (Radio, error) {
 
 	resp, err := client.Do(req)
 	if err != nil {
-		return Radio{}, fmt.Errorf("Failed to connect: %v", err)
+		return Radio{}, fmt.Errorf("failed to connect: %v", err)
 	}
 
 	// Check if the server actually supports ICY metadata
 	icyIntStr := resp.Header.Get("icy-metaint")
 	if icyIntStr == "" {
-		return Radio{}, fmt.Errorf("Server did not return icy-metaint. This might not be a direct Icecast stream.")
+		return Radio{}, fmt.Errorf("server did not return icy-metaint. This might not be a direct Icecast stream")
 	}
 
 	// Get the interval from headers
@@ -56,12 +66,12 @@ func NewRadio(c config.Config) (Radio, error) {
 	// We wrap in bufio to ensure the decoder gets enough data to identify the format
 	streamer, format, err := mp3.Decode(wrappedReader)
 	if err != nil {
-		return Radio{}, fmt.Errorf("Failed to decode MP3: %v", err)
+		return Radio{}, fmt.Errorf("failed to decode MP3: %v", err)
 	}
 
 	err = speaker.Init(format.SampleRate, format.SampleRate.N(time.Second/10))
 	if err != nil {
-		return Radio{}, fmt.Errorf("Failed to initialize speaker: %v", err)
+		return Radio{}, fmt.Errorf("failed to initialize speaker: %v", err)
 	}
 
 	return Radio{
