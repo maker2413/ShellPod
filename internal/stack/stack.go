@@ -2,6 +2,7 @@ package stack
 
 import (
 	"errors"
+	"slices"
 	"sync"
 )
 
@@ -37,5 +38,5 @@ func (s *Stack[T]) IsEmpty() bool {
 }
 
 func (s *Stack[T]) GetStack() []T {
-	return append([]T{}, s.elements...)
+	return slices.Clone(s.elements)
 }
