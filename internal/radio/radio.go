@@ -30,6 +30,9 @@ func NewRadio(c config.Config) (Radio, error) {
 				Timeout: 30 * time.Second,
 			}).DialContext,
 			ResponseHeaderTimeout: 30 * time.Second,
+			IdleConnTimeout:       30 * time.Second,
+			MaxIdleConns:          1,
+			MaxIdleConnsPerHost:   1,
 		},
 	}
 	//client := &http.Client{Timeout: 0}

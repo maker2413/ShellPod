@@ -37,5 +37,5 @@ func (s *Stack[T]) IsEmpty() bool {
 }
 
 func (s *Stack[T]) GetStack() []T {
-	return s.elements
+	return append([]T{}, s.elements...)
 }
